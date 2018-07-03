@@ -1,0 +1,119 @@
+Jumble Solver:
+The jumble puzzle is a common newspaper puzzle, it contains a series of anagrams that must be solved (see https://en.wikipedia.org/wiki/Jumble). To solve, one must solve each of the individual jumbles. The circled letters are then used to create an additional anagram to be solved. In especially difficult versions, some of the anagrams in the first set can possess multiple solutions. To get the final answer, it is important to know all possible anagrams of a given series of letters.
+
+Your challenge is to solve the five Jumble puzzles using Spark, where it makes sense to do so. You must use Python. If the final puzzle has multiple possible answers, you are to include an algorithm to determine the most likely one. We have provided a dictionary where the "most common" English words are scored (1=most frequent, 9887=least frequent, 0=not scored due to infrequency of use). For each puzzle, produce the "most likely" (as you determine it) final anagram produced from solving all the other anagrams.
+
+Important Notes: Part of your task is to have this be as production ready as possible - while there are only five puzzles now, assume that there could be many more, so use Spark in the most useful way, however you don't need to spend a lot of time on tweaking the parallelization parameters. The code should be deployable and maintainable as well. Don't spend more than 24 hours to complete as much of the assignment as you can.
+
+Also included:
+freq_dict - keys are English Dictionary words to be used in your solving of the jumbles. Non-zero values are the frequency rankings (1=most frequent). Zero values mean that the word is too infrequent to be ranked.
+pictures of the jumbles we provided for you to solve. You can put these in whatever data format you'd like for your program to read in
+
+Please send us a link to your github repository with the following:
+Your initial data (from the jumble pictures given)
+Your code
+Output from your code
+
+
+
+
+
+[helo]
+[hii,sdf]
+[sdf,lkk]
+[kkk]
+
+
+
+from pyspark import SparkConf, SparkContext, SQLContext
+from _sqlite3 import Row
+import itertools
+
+class JumbleSolver():
+    
+    def __init__(self,dic_path, scrambled_file):
+        self.dic_path = dic_path
+        self.scrambled_file = scrambled_file
+        self.conf=SparkConf().setMaster("local").setAppName("Finding Top Movies")
+        self.sc=SparkContext(conf=self.conf)
+        self.sqlContext = SQLContext (self.sc)
+       
+        self.table = {}
+        self.sorted_table ={}
+        self.jumble_words = {}
+
+    def f(self,row):
+        
+        skey = ''.join(sorted(row.split(':')[0])).strip().replace('"', '').lower()
+        #if len(skey) > 6: return
+        if skey not in self.table.keys(): self.table[skey] = [row]
+        else: self.table[skey].append(row)
+        return self.table
+        #print(self.table)
+    
+    def e(self,row):
+        key = row.split(",")
+        key = "".join(sorted(key[0].split(':')[0])).strip().replace('"', '').lower()
+        return {key:row}
+    
+    
+    def _my_lookup(self,x,val):
+        if x[val] in x.iteritems():
+            return x[val]
+        else:
+            return False
+        
+    def read_jumble(self):
+        df = self.sqlContext.read.json (self.scrambled_file).rdd
+        print(df.collect())
+    
+    def create_dic(self):
+       
+        rdd=self.sc.textFile(self.dic_path)
+        print(rdd.count())
+        #filter2_rdd = rdd.map(lambda x: ''.join(sorted(x.split(',')[0].split(':')[0]))).map(lambda x: x.split(',')).flatMap(lambda x: x)
+        r = rdd.map(lambda x: self.e(x))
+        items = r.flatMap(lambda line: (line.items()))
+        items.take(items.count())
+        groupedItems = items.groupByKey().mapValues(list)
+        groupedItems.take(groupedItems.count())#j = filter2_rdd
+        d = groupedItems.collectAsMap()
+        #print(d)
+        
+        a = ['nagld', 'ramoj', 'camble', 'wraley' ]
+        a = [''.join(sorted(s)) for s in a]
+        for i in a:
+            print(i)
+            if d.get(i): print(d[i])
+        #print(r.lookup('abckl'))
+        
+
+
+    
+
+        '''
+        with open(self.dic_path) as json_data:
+            dic = json.load(json_data)        
+
+            print(dic)
+        '''
+    
+
+    def per(self):
+        b =  ['B','E', 'C','A','L','M']
+        a =  list(itertools.permutations(range(5),2))
+        print("\n")
+        b =  list(itertools.permutations(range(5),3))
+
+        print(a)
+        print(b)
+        print(set(a + b))
+
+
+if __name__ == '__main__':
+
+    jumble = JumbleSolver('freq_dict.json','jumble.json')
+    #jumble = JumbleSolver('aa.json','scramble.json')
+    #jumble.read_jumble()
+    jumble.create_dic()
+
